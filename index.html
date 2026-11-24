@@ -49,6 +49,8 @@ h2{font-size:30px;margin:0 0 6px;font-weight:800}
 .chip.on{background:var(--acc);color:#10192a;border-color:var(--acc);font-weight:700}
 .works{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .work{background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer}
+.work{position:relative}
+.play{position:absolute;top:10px;right:10px;background:#000a;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:14px}
 .work img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
 .work div{padding:10px 14px}
 .work small{color:var(--acc)}
@@ -203,7 +205,14 @@ function renderSvc(){
  var G=$('svcGrid');G.textContent='';
  (svc.length?svc:DEF).forEach(function(s){var c=mk('div','card');c.appendChild(mk('div','ic',s.icon||'⭐'));c.appendChild(mk('h3','',s.title));c.appendChild(mk('p','',s.desc||''));G.appendChild(c)});
 }
-function lb(w){var o=mk('div','lb'),i=mk('img');i.src=img(w.img);o.appendChild(i);o.appendChild(mk('b','',w.title));o.appendChild(mk('p','',w.desc||''));o.onclick=function(){o.remove()};document.body.appendChild(o)}
+function vidEl(u){
+ var m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{11})/),v=u.match(/vimeo\.com\/(\d+)/),e=null;
+ if(m||v){e=mk('iframe');e.src=m?'https://www.youtube.com/embed/'+m[1]+'?autoplay=1':'https://player.vimeo.com/video/'+v[1]+'?autoplay=1';e.allow='autoplay; fullscreen';e.allowFullscreen=true;e.style.cssText='width:min(92vw,720px);aspect-ratio:16/9;border:0;border-radius:10px'}
+ else if(/^(https:\/\/\S+|[\w\/.-]+\.(mp4|webm|mov))$/i.test(u)){e=mk('video');e.src=u;e.controls=true;e.autoplay=true;e.playsInline=true;e.style.cssText='max-width:92vw;max-height:68vh;border-radius:10px'}
+ return e}
+function lb(w){var o=mk('div','lb'),i=vidEl(w.video||'');
+ if(i)i.onclick=function(e){e.stopPropagation()};else{i=mk('img');i.src=img(w.img)}
+ o.appendChild(i);o.appendChild(mk('b','',w.title));o.appendChild(mk('p','',w.desc||''));o.appendChild(mk('small','','اضغط خارج الفيديو للإغلاق'));o.onclick=function(){o.remove()};document.body.appendChild(o)}
 function renderWorks(){
  var L=$('worksList'),H=$('chips');L.textContent='';H.textContent='';
  var cats=[];works.forEach(function(w){if(w.cat&&cats.indexOf(w.cat)<0)cats.push(w.cat)});
@@ -212,7 +221,7 @@ function renderWorks(){
  var arr=works.filter(function(w){return !flt||w.cat==flt});
  if(!arr.length){var e=mk('div','empty','سيتم عرض أعمالنا هنا قريباً');e.style.gridColumn='1/-1';L.appendChild(e)}
  arr.forEach(function(w){var c=mk('div','work'),i=mk('img'),d=mk('div');i.src=img(w.img);i.alt=w.title;i.loading='lazy';
-  d.appendChild(mk('b','',w.title));d.appendChild(mk('small','',w.cat||''));c.appendChild(i);c.appendChild(d);c.onclick=function(){lb(w)};L.appendChild(c)});
+  d.appendChild(mk('b','',w.title));d.appendChild(mk('small','',w.cat||''));c.appendChild(i);if(w.video)c.appendChild(mk('span','play','▶'));c.appendChild(d);c.onclick=function(){lb(w)};L.appendChild(c)});
 }
 function renderRevs(){
  var G=$('revGrid');G.textContent='';$('revSec').style.display=revs.length?'':'none';
@@ -299,7 +308,7 @@ function buildAdmin(){
   var r=mk('button','btn alt2','الشعار الافتراضي');r.onclick=async function(){var o=Object.assign({},S);delete o.logo;try{await db.collection('site').doc('main').set(o);say('تمت الإعادة للشعار الافتراضي')}catch(x){say('تعذر التنفيذ')}};p.appendChild(r)});
  crud(P.svc.p,'services',[{k:'icon',l:'الأيقونة (إيموجي)',p:'📸'},{k:'title',l:'اسم الخدمة'},{k:'desc',l:'وصف الخدمة',t:'ta'}],function(){return svc},'title',function(lc){
   var b=mk('button','btn alt2','استيراد الخدمات الحالية للتعديل');b.onclick=async function(){if(svc.length){say('الخدمات موجودة');return}try{for(var i=0;i<DEF.length;i++){var o=Object.assign({ts:Date.now()+i},DEF[i]);await db.collection('services').doc('s'+(Date.now()+i)).set(o)}say('تم الاستيراد ✓')}catch(x){say('تعذر الاستيراد')}};lc.appendChild(b)});
- crud(P.wrk.p,'works',[{k:'title',l:'عنوان العمل'},{k:'cat',l:'التصنيف',t:'sel',o:function(){return (svc.length?svc:DEF).map(function(s){return s.title}).concat(['أخرى'])}},{k:'desc',l:'وصف مختصر (اختياري)',t:'ta'},{k:'img',l:'صورة العمل',t:'file'}],function(){return works},'title');
+ crud(P.wrk.p,'works',[{k:'title',l:'عنوان العمل'},{k:'cat',l:'التصنيف',t:'sel',o:function(){return (svc.length?svc:DEF).map(function(s){return s.title}).concat(['أخرى'])}},{k:'desc',l:'وصف مختصر (اختياري)',t:'ta'},{k:'video',l:'رابط الفيديو (اختياري): يوتيوب أو فيميو أو اسم ملف مثل ad1.mp4',d:1,p:'https://youtu.be/xxxx'},{k:'img',l:'صورة العمل (تكون غلاف الفيديو إن وُجد)',t:'file'}],function(){return works},'title');
  crud(P.rev.p,'reviews',[{k:'name',l:'اسم العميل'},{k:'role',l:'الصفة أو الشركة (اختياري)'},{k:'text',l:'نص الرأي',t:'ta'}],function(){return revs},'text');
  sform(P.con.p,[{k:'wa',l:'رقم واتساب (دولي بدون +)',d:1,p:'9665xxxxxxxx'},{k:'phone',l:'رقم الهاتف',d:1},{k:'mail',l:'البريد الإلكتروني',d:1},{k:'ig',l:'رابط انستغرام',d:1,p:'https://instagram.com/...'},{k:'fb',l:'رابط فيسبوك',d:1,p:'https://facebook.com/...'},{k:'tt',l:'رابط تيك توك',d:1,p:'https://tiktok.com/@...'},{k:'addr',l:'العنوان'}]);
  $('gear').style.display='block';
